@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iran War Progress Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* =========================================================
+       RESET & BASE
+    ========================================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-page:        #0d1117;
+      --bg-card:        #161b22;
+      --bg-card-inner:  #1c2330;
+      --border:         #30363d;
+      --text-primary:   #e6edf3;
+      --text-secondary: #8b949e;
+      --text-dim:       #484f58;
+
+      --irn:            #22c55e;
+      --irn-soft:       rgba(34,197,94,0.15);
+      --isr:            #3b82f6;
+      --isr-soft:       rgba(59,130,246,0.15);
+      --usa:            #f59e0b;
+      --usa-soft:       rgba(245,158,11,0.15);
+
+      --positive:       #22c55e;
+      --negative:       #ef4444;
+      --neutral:        #8b949e;
+
+      --radius:         12px;
+      --radius-sm:      8px;
+      --transition:     0.3s ease;
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      background:  var(--bg-page);
+      color:       var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      min-height:  100vh;
+    }
+
+    /* =========================================================
+       LAYOUT
+    ========================================================= */
+    .page-wrapper {
+      max-width: 1280px;
+      margin:    0 auto;
+      padding:   24px 20px 60px;
+    }
+
+    /* =========================================================
+       HEADER BAR
+    ========================================================= */
+    .header {
+      display:         flex;
+      align-items:     center;
+      justify-content: space-between;
+      flex-wrap:       wrap;
+      gap:             12px;
+      padding:         20px 24px;
+      background:      var(--bg-card);
+      border:          1px solid var(--border);
+      border-radius:   var(--radius);
+      margin-bottom:   24px;
+    }
+
+    .header-left h1 {
+      font-size:   1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color:       var(--text-primary);
+    }
+
+    .header-left p {
+      font-size: 0.82rem;
+      color:     var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .header-meta {
+      display:    flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap:        4px;
+    }
+
+    .meta-pill {
+      display:       inline-flex;
+      align-items:   center;
+      gap:           6px;
+      background:    var(--bg-card-inner);
+      border:        1px solid var(--border);
+      border-radius: 20px;
+      padding:       4px 12px;
+      font-size:     0.78rem;
+      color:         var(--text-secondary);
+      white-space:   nowrap;
+    }
+
+    .meta-pill .dot {
+      width:         7px;
+      height:        7px;
+      border-radius: 50%;
+      background:    var(--positive);
+      animation:     pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .phase-badge {
+      display:       inline-block;
+      background:    rgba(239,68,68,0.15);
+      color:         #ef4444;
+      border:        1px solid rgba(239,68,68,0.3);
+      border-radius: 20px;
+      padding:       3px 12px;
+      font-size:     0.75rem;
+      font-weight:   600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* =========================================================
+       LOADING STATE
+    ========================================================= */
+    .loading-screen {
+      display:         flex;
+      flex-direction:  column;
+      align-items:     center;
+      justify-content: center;
+      min-height:      60vh;
+      gap:             16px;
+      color:           var(--text-secondary);
+    }
+
+    .spinner {
+      width:  44px;
+      height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--isr);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-screen {
+      text-align: center;
+      padding:    60px 20px;
+      color:      var(--text-secondary);
+    }
+
+    .error-screen h2 { color: #ef4444; margin-bottom: 8px; }
+
+    /* =========================================================
+       SECTION TITLES
+    ========================================================= */
+    .section-title {
+      font-size:     0.72rem;
+      font-weight:   600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color:          var(--text-dim);
+      margin-bottom:  14px;
+      padding-left:   4px;
+    }
+
+    /* =========================================================
+       SECTION 1 — OVERALL WAR POSITION SCORE
+    ========================================================= */
+    .overall-grid {
+      display:               grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:                   16px;
+      margin-bottom:         32px;
+    }
+
+    .nation-card {
+      background:    var(--bg-card);
+      border:        1px solid var(--border);
+      border-radius: var(--radius);
+      padding:       24px;
+      position:      relative;
+      overflow:      hidden;
+      transition:    transform var(--transition), box-shadow var(--transition);
+    }
+
+    .nation-card:hover {
+      transform:   translateY(-2px);
+      box-shadow:  0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .nation-card.irn { border-left: 4px solid var(--irn); }
+    .nation-card.isr { border-left: 4px solid var(--isr); }
+    .nation-card.usa { border-left: 4px solid var(--usa); }
+
+    .nation-card.irn::before {
+      content: ""; position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--irn-soft);
+      pointer-events: none;
+    }
+    .nation-card.isr::before {
+      content: ""; position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--isr-soft);
+      pointer-events: none;
+    }
+    .nation-card.usa::before {
+      content: ""; position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--usa-soft);
+      pointer-events: none;
+    }
+
+    .nation-header {
+      display:         flex;
+      align-items:     center;
+      justify-content: space-between;
+      margin-bottom:   20px;
+      position:        relative;
+    }
+
+    .nation-identity {
+      display:     flex;
+      align-items: center;
+      gap:         10px;
+    }
+
+    .nation-flag  { font-size: 2rem; line-height: 1; }
+
+    .nation-name  { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+
+    .nation-phase { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+
+    .oam-badge {
+      font-size:     0.72rem;
+      font-weight:   600;
+      padding:       3px 9px;
+      border-radius: 12px;
+      border:        1px solid var(--border);
+      color:         var(--text-secondary);
+      background:    var(--bg-card-inner);
+    }
+
+    .final-score-wrap {
+      display:         flex;
+      align-items:     flex-end;
+      gap:             10px;
+      margin-bottom:   16px;
+      position:        relative;
+    }
+
+    .final-score-number {
+      font-size:   3.2rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .final-score-number.positive { color: var(--positive); }
+    .final-score-number.negative { color: var(--negative); }
+    .final-score-number.neutral  { color: var(--neutral);  }
+
+    .final-score-label {
+      font-size:     0.75rem;
+      color:         var(--text-secondary);
+      margin-bottom: 6px;
+      line-height:   1.3;
+    }
+
+    .gauge-track {
+      width:         100%;
+      height:        6px;
+      background:    var(--bg-card-inner);
+      border-radius: 3px;
+      margin-bottom: 20px;
+      overflow:      hidden;
+      position:      relative;
+    }
+
+    .gauge-fill {
+      height:        100%;
+      border-radius: 3px;
+      transition:    width 1s ease;
+    }
+
+    .mini-dims { display: flex; flex-direction: column; gap: 8px; }
+
+    .mini-dim-row {
+      display:     flex;
+      align-items: center;
+      gap:         8px;
+    }
+
+    .mini-dim-label {
+      font-size:  0.72rem;
+      color:      var(--text-secondary);
+      width:      130px;
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow:    hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mini-bar-track {
+      flex:          1;
+      height:        5px;
+      background:    var(--bg-card-inner);
+      border-radius: 3px;
+      overflow:      hidden;
+      position:      relative;
+    }
+
+    .mini-bar-track::after {
+      content:  "";
+      position: absolute;
+      left:     50%;
+      top:      0;
+      bottom:   0;
+      width:    1px;
+      background: var(--border);
+    }
+
+    .mini-bar-fill {
+      position:      absolute;
+      top:           0;
+      height:        100%;
+      border-radius: 3px;
+      transition:    width 0.8s ease, left 0.8s ease;
+    }
+
+    .mini-dim-value {
+      font-size:  0.72rem;
+      font-weight: 600;
+      width:      36px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .mini-dim-value.pos { color: var(--positive); }
+    .mini-dim-value.neg { color: var(--negative); }
+    .mini-dim-value.neu { color: var(--neutral);  }
+
+    /* =========================================================
+       SCORE LEGEND
+    ========================================================= */
+    .legend-section {
+      background:    var(--bg-card);
+      border:        1px solid var(--border);
+      border-radius: var(--radius);
+      padding:       28px 32px;
+      margin-bottom: 32px;
+    }
+
+    .legend-section .section-title {
+      margin-bottom: 10px;
+    }
+
+    .legend-subtitle {
+      color:         var(--text-secondary);
+      font-size:     0.95rem;
+      line-height:   1.7;
+      margin-bottom: 24px;
+    }
+
+    .legend-grid {
+      display:               grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap:                   12px;
+      margin-bottom:         20px;
+    }
+
+    .legend-card {
+      border-radius: 10px;
+      padding:       14px 16px;
+      display:       flex;
+      flex-direction: column;
+      gap:           4px;
+      border-left:   4px solid transparent;
+    }
+
+    .legend-range {
+      font-size:      1rem;
+      font-weight:    700;
+      letter-spacing: 0.02em;
+    }
+
+    .legend-label {
+      font-size:      0.78rem;
+      font-weight:    600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      opacity:        0.85;
+    }
+
+    .legend-desc {
+      font-size:   0.75rem;
+      line-height: 1.5;
+      opacity:     0.7;
+      margin-top:  4px;
+    }
+
+    /* Colour bands */
+    .dominant-advantage    { background: rgba(34,197, 94,0.15); border-left-color: #22c55e; color: #bbf7d0; }
+    .clear-advantage       { background: rgba(74,222,128,0.10); border-left-color: #4ade80; color: #d1fae5; }
+    .modest-advantage      { background: rgba(163,230,153,0.10); border-left-color: #86efac; color: #dcfce7; }
+    .neutral-band          { background: rgba(148,163,184,0.10); border-left-color: #94a3b8; color: #e2e8f0; }
+    .modest-disadvantage   { background: rgba(251,191, 36,0.10); border-left-color: #fbbf24; color: #fef3c7; }
+    .clear-disadvantage    { background: rgba(249,115, 22,0.10); border-left-color: #f97316; color: #ffedd5; }
+    .critical-disadvantage { background: rgba(239, 68, 68,0.15); border-left-color: #ef4444; color: #fecaca; }
+
+    .legend-note {
+      font-size:   0.80rem;
+      color:       var(--text-secondary);
+      border-top:  1px solid var(--border);
+      padding-top: 14px;
+      line-height: 1.6;
+    }
+
+    /* =========================================================
+       SECTION 2 — RADAR CHART COMPARISON
+    ========================================================= */
+    .radar-section {
+      display:               grid;
+      grid-template-columns: 1fr 1fr;
+      gap:                   16px;
+      margin-bottom:         32px;
+      align-items:           start;
+    }
+
+    .card {
+      background:    var(--bg-card);
+      border:        1px solid var(--border);
+      border-radius: var(--radius);
+      padding:       24px;
+    }
+
+    .card-title {
+      font-size:     0.9rem;
+      font-weight:   600;
+      color:         var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .card-subtitle {
+      font-size:     0.78rem;
+      color:         var(--text-secondary);
+      margin-bottom: 20px;
+      line-height:   1.4;
+    }
+
+    .chart-wrap { position: relative; width: 100%; }
+
+    /* =========================================================
+       SECTION 3 — DIMENSION BREAKDOWN
+    ========================================================= */
+    .dim-section { margin-bottom: 32px; }
+
+    .dim-cards-grid {
+      display:               grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:                   12px;
+    }
+
+    .dim-card {
+      background:    var(--bg-card);
+      border:        1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding:       18px;
+    }
+
+    .dim-card-header {
+      display:         flex;
+      justify-content: space-between;
+      align-items:     flex-start;
+      margin-bottom:   14px;
+    }
+
+    .dim-card-name {
+      font-size:   0.85rem;
+      font-weight: 600;
+      color:       var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .dim-card-icon { font-size: 1.2rem; }
+
+    .dim-nation-rows { display: flex; flex-direction: column; gap: 10px; }
+
+    .dim-nation-row {
+      display:     flex;
+      align-items: center;
+      gap:         8px;
+    }
+
+    .dim-nation-flag { font-size: 1rem; width: 22px; flex-shrink: 0; }
+
+    .dim-bar-track {
+      flex:          1;
+      height:        8px;
+      background:    var(--bg-card-inner);
+      border-radius: 4px;
+      overflow:      hidden;
+      position:      relative;
+    }
+
+    .dim-bar-track::after {
+      content:  "";
+      position: absolute;
+      left:     50%;
+      top:      0;
+      bottom:   0;
+      width:    1px;
+      background: var(--border);
+    }
+
+    .dim-bar-fill {
+      position:      absolute;
+      top:           0;
+      height:        100%;
+      border-radius: 4px;
+      transition:    width 0.8s ease, left 0.8s ease;
+    }
+
+    .dim-nation-score {
+      font-size:   0.78rem;
+      font-weight: 700;
+      width:       38px;
+      text-align:  right;
+      flex-shrink: 0;
+    }
+
+    .dim-nation-score.pos { color: var(--positive); }
+    .dim-nation-score.neg { color: var(--negative); }
+    .dim-nation-score.neu { color: var(--neutral);  }
+
+    /* =========================================================
+       SECTION 4 — RECENT EVENTS FEED
+    ========================================================= */
+    .events-section { margin-bottom: 32px; }
+
+    .events-grid {
+      display:               grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap:                   16px;
+    }
+
+    .events-col-title {
+      display:     flex;
+      align-items: center;
+      gap:         8px;
+      font-size:   0.85rem;
+      font-weight: 600;
+      color:       var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .event-item {
+      background:    var(--bg-card-inner);
+      border:        1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding:       12px 14px;
+      margin-bottom: 8px;
+      transition:    border-color var(--transition);
+    }
+
+    .event-item:hover { border-color: var(--text-dim); }
+
+    .event-headline {
+      font-size:   0.8rem;
+      color:       var(--text-primary);
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+
+    .event-headline a { color: var(--text-primary); text-decoration: none; }
+    .event-headline a:hover { text-decoration: underline; }
+
+    .event-meta {
+      display:     flex;
+      align-items: center;
+      gap:         8px;
+      flex-wrap:   wrap;
+    }
+
+    .event-tag {
+      font-size:      0.68rem;
+      font-weight:    600;
+      padding:        2px 7px;
+      border-radius:  10px;
+      background:     var(--bg-card);
+      border:         1px solid var(--border);
+      color:          var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .event-score      { font-size: 0.72rem; font-weight: 700; }
+    .event-score.pos  { color: var(--positive); }
+    .event-score.neg  { color: var(--negative); }
+    .event-source     { font-size: 0.68rem; color: var(--text-dim); }
+
+    /* =========================================================
+       RESPONSIVE
+    ========================================================= */
+    @media (max-width: 900px) {
+      .overall-grid   { grid-template-columns: 1fr; }
+      .radar-section  { grid-template-columns: 1fr; }
+      .dim-cards-grid { grid-template-columns: 1fr 1fr; }
+      .events-grid    { grid-template-columns: 1fr; }
+      .legend-grid    { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .dim-cards-grid { grid-template-columns: 1fr; }
+      .mini-dim-label { width: 100px; }
+      .legend-grid    { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="page-wrapper">
+
+  <!-- ======================================================
+       HEADER
+  ====================================================== -->
+  <header class="header">
+    <div class="header-left">
+      <h1>🌍 Iran War Progress Tracker</h1>
+      <p>Automated conflict intelligence — scores update every 30 minutes</p>
+    </div>
+    <div class="header-meta" id="headerMeta">
+      <div class="meta-pill">
+        <span class="dot"></span>
+        <span id="lastUpdated">Loading...</span>
+      </div>
+      <div class="meta-pill" id="articleCount">— articles analysed</div>
+      <span class="phase-badge" id="phaseBadge">—</span>
+    </div>
+  </header>
+
+  <!-- ======================================================
+       LOADING / ERROR STATES
+  ====================================================== -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="spinner"></div>
+    <p>Fetching latest intelligence data...</p>
+  </div>
+
+  <div class="error-screen" id="errorScreen" style="display:none;">
+    <h2>⚠ Data Unavailable</h2>
+    <p id="errorMsg">Could not load tracker data. Please try refreshing.</p>
+  </div>
+
+  <!-- ======================================================
+       MAIN CONTENT — hidden until data loads
+  ====================================================== -->
+  <main id="mainContent" style="display:none;">
+
+    <!-- SECTION 1 — OVERALL WAR POSITION SCORE -->
+    <p class="section-title">Overall War Position Score</p>
+    <div class="overall-grid" id="overallGrid"></div>
+
+    <!-- SCORE LEGEND -->
+    <div class="legend-section">
+      <p class="section-title">How to Read the Scores</p>
+      <p class="legend-subtitle">
+        All scores operate on a scale of <strong>−10 to +10</strong>. The
+        <strong>Overall War Position Score</strong> is a weighted average of the
+        six dimension scores below. A score of 0 represents a perfectly neutral
+        or contested position. Positive values indicate advantage relative to
+        each nation's stated war objectives; negative values indicate
+        disadvantage.
+      </p>
+
+      <div class="legend-grid">
+        <div class="legend-card dominant-advantage">
+          <span class="legend-range">+7 to +10</span>
+          <span class="legend-label">Dominant Advantage</span>
+          <span class="legend-desc">Near-total control of this dimension. Objectives being met decisively.</span>
+        </div>
+        <div class="legend-card clear-advantage">
+          <span class="legend-range">+4 to +7</span>
+          <span class="legend-label">Clear Advantage</span>
+          <span class="legend-desc">Meaningful lead. Opponent is under significant pressure in this area.</span>
+        </div>
+        <div class="legend-card modest-advantage">
+          <span class="legend-range">+1 to +4</span>
+          <span class="legend-label">Modest Advantage</span>
+          <span class="legend-desc">Slight edge. Outcomes leaning in this nation's favour but not decisive.</span>
+        </div>
+        <div class="legend-card neutral-band">
+          <span class="legend-range">−1 to +1</span>
+          <span class="legend-label">Contested / Neutral</span>
+          <span class="legend-desc">No meaningful advantage either way. Situation is balanced or data is insufficient.</span>
+        </div>
+        <div class="legend-card modest-disadvantage">
+          <span class="legend-range">−4 to −1</span>
+          <span class="legend-label">Modest Disadvantage</span>
+          <span class="legend-desc">Slight setback. Opponent is gaining ground in this dimension.</span>
+        </div>
+        <div class="legend-card clear-disadvantage">
+          <span class="legend-range">−7 to −4</span>
+          <span class="legend-label">Clear Disadvantage</span>
+          <span class="legend-desc">Significant losses or setbacks. Objectives under serious threat.</span>
+        </div>
+        <div class="legend-card critical-disadvantage">
+          <span class="legend-range">−10 to −7</span>
+          <span class="legend-label">Critical Disadvantage</span>
+          <span class="legend-desc">Near-collapse in this dimension. Core objectives failing or already lost.</span>
+        </div>
+      </div>
+
+      <p class="legend-note">
+        ⚠️ Scores reflect automated analysis of recent news and are directional
+        indicators, not definitive assessments. Dimensions showing zero indicate
+        insufficient matched data for that cycle, not necessarily inactivity on
+        the ground.
+      </p>
+    </div>
+
+    <!-- SECTION 2 — VISUAL COMPARISON -->
+    <p class="section-title">Multi-Dimension Comparison</p>
+    <div class="radar-section">
+
+      <div class="card">
+        <div class="card-title">Dimension Radar</div>
+        <div class="card-subtitle">
+          Each axis represents one scoring dimension. Scores reflect
+          each nation's progress toward its own war objective.
+        </div>
+        <div class="chart-wrap">
+          <canvas id="radarChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Overall War Position Score — Comparison</div>
+        <div class="card-subtitle">
+          Weighted final score per nation. Positive = advantage relative
+          to war objective. Negative = disadvantage.
+        </div>
+        <div class="chart-wrap">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SECTION 3 — DIMENSION BREAKDOWN -->
+    <p class="section-title">Score Breakdown by Category</p>
+    <div class="dim-section">
+      <div class="dim-cards-grid" id="dimGrid"></div>
+    </div>
+
+    <!-- SECTION 4 — RECENT EVENTS -->
+    <p class="section-title">Recent Scored Events</p>
+    <div class="events-section">
+      <div class="events-grid" id="eventsGrid"></div>
+    </div>
+
+  </main>
+
+</div><!-- /page-wrapper -->
+
+
+<script>
+// ============================================================
+// CONFIGURATION — mirrors Code.gs constants
+// ============================================================
+const NATIONS = [
+  { code: "IRN", label: "Iran",          flag: "🇮🇷", cls: "irn", color: "#22c55e" },
+  { code: "ISR", label: "Israel",        flag: "🇮🇱", cls: "isr", color: "#3b82f6" },
+  { code: "USA", label: "United States", flag: "🇺🇸", cls: "usa", color: "#f59e0b" }
+];
+
+const DIMENSIONS = [
+  { code: "MSI", label: "Military Strike Impact",   icon: "💥" },
+  { code: "OCS", label: "Operational Control",      icon: "🗺️" },
+  { code: "DLS", label: "Diplomatic Leverage",      icon: "🤝" },
+  { code: "EPS", label: "Economic Pressure",        icon: "📉" },
+  { code: "PAS", label: "Proxy & Alliance",         icon: "🔗" },
+  { code: "ILS", label: "International Legitimacy", icon: "🌐" }
+];
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function scoreToBar(score) {
+  const clamped = Math.max(-10, Math.min(10, score));
+  if (clamped >= 0) {
+    return { left: "50%", width: (clamped / 10 * 50) + "%", positive: true };
+  } else {
+    const w = (Math.abs(clamped) / 10 * 50);
+    return { left: (50 - w) + "%", width: w + "%", positive: false };
+  }
+}
+
+function scoreColor(score) {
+  if (score >  0.1) return "var(--positive)";
+  if (score < -0.1) return "var(--negative)";
+  return "var(--neutral)";
+}
+
+function fmtScore(score) {
+  if (score === null || score === undefined) return "—";
+  const s = parseFloat(score).toFixed(2);
+  return score > 0 ? "+" + s : s;
+}
+
+function gaugePercent(score) {
+  return Math.round(((score + 10) / 20) * 100);
+}
+
+function fmtTime(iso) {
+  if (!iso) return "Unknown";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", {
+    day: "2-digit", month: "short", year: "numeric"
+  }) + " · " + d.toLocaleTimeString("en-US", {
+    hour: "2-digit", minute: "2-digit", hour12: true
+  });
+}
+
+function countArticles(data) {
+  if (!data || !data.scores) return 0;
+  let total = 0;
+  if (data.recentEvents) {
+    Object.values(data.recentEvents).forEach(arr => {
+      total += (arr || []).length;
+    });
+  }
+  return total;
+}
+
+// ============================================================
+// SECTION 1 — OVERALL WAR POSITION SCORE CARDS
+// ============================================================
+function renderOverallCards(data) {
+  const grid = document.getElementById("overallGrid");
+  grid.innerHTML = "";
+
+  NATIONS.forEach(nation => {
+    const nd = data.scores[nation.code];
+    if (!nd) return;
+
+    const score   = nd.finalScore || 0;
+    const rawFWPS = nd.rawFWPS    || 0;
+    const oam     = nd.oam        || 1.0;
+    const bar     = scoreToBar(score);
+    const gPct    = gaugePercent(score);
+    const cls     = score > 0.1 ? "positive" : score < -0.1 ? "negative" : "neutral";
+
+    const miniDims = DIMENSIONS.map(dim => {
+      const s    = nd.scores[dim.code] || 0;
+      const b    = scoreToBar(s);
+      const vcls = s > 0.1 ? "pos" : s < -0.1 ? "neg" : "neu";
+      return `
+        <div class="mini-dim-row">
+          <span class="mini-dim-label">${dim.label}</span>
+          <div class="mini-bar-track">
+            <div class="mini-bar-fill" style="
+              left:       ${b.left};
+              width:      ${b.width};
+              background: ${b.positive ? "var(--positive)" : "var(--negative)"};
+            "></div>
+          </div>
+          <span class="mini-dim-value ${vcls}">${fmtScore(s)}</span>
+        </div>`;
+    }).join("");
+
+    grid.innerHTML += `
+      <div class="nation-card ${nation.cls}">
+
+        <div class="nation-header">
+          <div class="nation-identity">
+            <span class="nation-flag">${nation.flag}</span>
+            <div>
+              <div class="nation-name">${nation.label}</div>
+              <div class="nation-phase">${nd.phase || "HOT_WAR"} Phase</div>
+            </div>
+          </div>
+          <span class="oam-badge" title="Objective Alignment Modifier">
+            OAM ${oam.toFixed(2)}
+          </span>
+        </div>
+
+        <div class="final-score-wrap">
+          <div class="final-score-number ${cls}">${fmtScore(score)}</div>
+          <div class="final-score-label">
+            Overall War<br>Position Score<br>
+            <span style="color:var(--text-dim);font-size:0.68rem;">
+              Raw ${fmtScore(rawFWPS)} × OAM ${oam.toFixed(2)}
+            </span>
+          </div>
+        </div>
+
+        <div class="gauge-track">
+          <div class="gauge-fill" style="
+            width:      ${gPct}%;
+            background: ${scoreColor(score)};
+          "></div>
+        </div>
+
+        <div class="mini-dims">${miniDims}</div>
+
+      </div>`;
+  });
+}
+
+// ============================================================
+// SECTION 2A — RADAR CHART
+// ============================================================
+let radarChartInst = null;
+
+function renderRadar(data) {
+  const labels   = DIMENSIONS.map(d => d.label);
+  const datasets = NATIONS.map(nation => {
+    const nd = data.scores[nation.code];
+    return {
+      label:                nation.label,
+      data:                 DIMENSIONS.map(d => nd ? (nd.scores[d.code] || 0) : 0),
+      borderColor:          nation.color,
+      backgroundColor:      nation.color + "22",
+      borderWidth:          2,
+      pointBackgroundColor: nation.color,
+      pointRadius:          4
+    };
+  });
+
+  if (radarChartInst) radarChartInst.destroy();
+
+  radarChartInst = new Chart(
+    document.getElementById("radarChart"),
+    {
+      type: "radar",
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        scales: {
+          r: {
+            min: -10, max: 10,
+            ticks: {
+              stepSize: 5,
+              color:    "#484f58",
+              font:     { size: 10 },
+              backdropColor: "transparent"
+            },
+            grid:        { color: "#30363d" },
+            angleLines:  { color: "#30363d" },
+            pointLabels: { color: "#8b949e", font: { size: 11 } }
+          }
+        },
+        plugins: {
+          legend: {
+            labels: { color: "#8b949e", font: { size: 12 }, boxWidth: 14 }
+          }
+        }
+      }
+    }
+  );
+}
+
+// ============================================================
+// SECTION 2B — BAR CHART
+// ============================================================
+let barChartInst = null;
+
+function renderBar(data) {
+  const labels = NATIONS.map(n => n.label);
+  const scores = NATIONS.map(n =>
+    data.scores[n.code] ? (data.scores[n.code].finalScore || 0) : 0
+  );
+  const colors = NATIONS.map(n => {
+    const s = data.scores[n.code] ? data.scores[n.code].finalScore : 0;
+    return s >= 0 ? n.color : "#ef4444";
+  });
+
+  if (barChartInst) barChartInst.destroy();
+
+  barChartInst = new Chart(
+    document.getElementById("barChart"),
+    {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [{
+          label:           "Overall War Position Score",
+          data:            scores,
+          backgroundColor: colors.map(c => c + "99"),
+          borderColor:     colors,
+          borderWidth:     2,
+          borderRadius:    6
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: ctx => ` Score: ${fmtScore(ctx.parsed.y)}` }
+          }
+        },
+        scales: {
+          x: { ticks: { color: "#8b949e" }, grid: { color: "#30363d" } },
+          y: {
+            min: -10, max: 10,
+            ticks: { color: "#8b949e", stepSize: 2 },
+            grid:  { color: "#30363d" }
+          }
+        }
+      }
+    }
+  );
+}
+
+// ============================================================
+// SECTION 3 — DIMENSION BREAKDOWN CARDS
+// ============================================================
+function renderDimensions(data) {
+  const grid = document.getElementById("dimGrid");
+  grid.innerHTML = "";
+
+  DIMENSIONS.forEach(dim => {
+    const rows = NATIONS.map(nation => {
+      const nd    = data.scores[nation.code];
+      const score = nd ? (nd.scores[dim.code] || 0) : 0;
+      const b     = scoreToBar(score);
+      const vcls  = score > 0.1 ? "pos" : score < -0.1 ? "neg" : "neu";
+
+      return `
+        <div class="dim-nation-row">
+          <span class="dim-nation-flag">${nation.flag}</span>
+          <div class="dim-bar-track">
+            <div class="dim-bar-fill" style="
+              left:       ${b.left};
+              width:      ${b.width};
+              background: ${b.positive ? "var(--positive)" : "var(--negative)"};
+            "></div>
+          </div>
+          <span class="dim-nation-score ${vcls}">${fmtScore(score)}</span>
+        </div>`;
+    }).join("");
+
+    grid.innerHTML += `
+      <div class="dim-card">
+        <div class="dim-card-header">
+          <div class="dim-card-name">${dim.label}</div>
+          <span class="dim-card-icon">${dim.icon}</span>
+        </div>
+        <div class="dim-nation-rows">${rows}</div>
+      </div>`;
+  });
+}
+
+// ============================================================
+// SECTION 4 — RECENT EVENTS FEED
+// ============================================================
+function renderEvents(data) {
+  const grid = document.getElementById("eventsGrid");
+  grid.innerHTML = "";
+
+  NATIONS.forEach(nation => {
+    const events = data.recentEvents
+      ? (data.recentEvents[nation.code] || [])
+      : [];
+
+    const items = events.length
+      ? events.map(ev => {
+          const scls  = ev.score > 0 ? "pos" : "neg";
+          const dim   = DIMENSIONS.find(d => d.code === ev.dimension);
+          const dname = dim ? dim.label : ev.dimension;
+          const ts    = ev.timestamp
+            ? new Date(ev.timestamp).toLocaleDateString("en-US",
+                { day: "2-digit", month: "short" })
+            : "";
+
+          return `
+            <div class="event-item">
+              <div class="event-headline">
+                ${ev.url
+                  ? `<a href="${ev.url}" target="_blank"
+                       rel="noopener noreferrer">${ev.title}</a>`
+                  : ev.title}
+              </div>
+              <div class="event-meta">
+                <span class="event-tag">${dname}</span>
+                <span class="event-score ${scls}">${fmtScore(ev.score)}</span>
+                <span class="event-source">${ev.source || ""} ${ts}</span>
+              </div>
+            </div>`;
+        }).join("")
+      : `<div style="color:var(--text-dim);font-size:0.8rem;padding:8px 0;">
+           No recent events recorded.
+         </div>`;
+
+    grid.innerHTML += `
+      <div>
+        <div class="events-col-title">
+          ${nation.flag} ${nation.label}
+        </div>
+        ${items}
+      </div>`;
+  });
+}
+
+// ============================================================
+// HEADER — last updated, article count, phase
+// ============================================================
+function renderHeader(data) {
+  document.getElementById("lastUpdated").textContent =
+    "Updated: " + fmtTime(data.generatedAt);
+
+  let articleEstimate = 0;
+  if (data.scores) {
+    NATIONS.forEach(n => {
+      const nd = data.scores[n.code];
+      if (nd && nd.scores) {
+        const nonZero = Object.values(nd.scores).filter(v => v !== 0).length;
+        articleEstimate = Math.max(articleEstimate, nonZero * 50);
+      }
+    });
+    if (articleEstimate === 0) articleEstimate = 300;
+  }
+
+  document.getElementById("articleCount").textContent =
+    "~" + articleEstimate + " articles analysed";
+
+  const phaseMap = {
+    HOT_WAR:          "🔴 Hot War",
+    NEGOTIATION:      "🟡 Negotiation",
+    ECONOMIC_SIEGE:   "🟠 Economic Siege",
+    PROXY_ESCALATION: "🟣 Proxy Escalation"
+  };
+
+  document.getElementById("phaseBadge").textContent =
+    phaseMap[data.phase] || data.phase || "Active";
+}
+
+// ============================================================
+// MASTER RENDER
+// ============================================================
+function renderAll(data) {
+  if (!data || !data.scores) {
+    document.getElementById("loadingScreen").style.display = "none";
+    document.getElementById("errorScreen").style.display   = "block";
+    document.getElementById("errorMsg").textContent =
+      "Data structure invalid. Check Apps Script logs.";
+    return;
+  }
+
+  renderHeader(data);
+  renderOverallCards(data);
+  renderRadar(data);
+  renderBar(data);
+  renderDimensions(data);
+  renderEvents(data);
+
+  document.getElementById("loadingScreen").style.display = "none";
+  document.getElementById("mainContent").style.display   = "block";
+}
+
+// ============================================================
+// BOOTSTRAP
+// ============================================================
+// ── Netlify-compatible data fetch ──────────────────────────
+// Replaces google.script.run with a standard fetch() call.
+// APPS_SCRIPT_URL points at your deployed Apps Script web app.
+// The ?action=data parameter tells doGet() to return JSON
+// instead of rendering the HTML page.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxUJKTc3s1I2ERe-VH0GQs-B-MjnSgvH2e5ibQV78RPguA4Xg-HFJp4eruU2U320piL/exec";
+
+function init() {
+  fetch(APPS_SCRIPT_URL + "?action=data")
+    .then(function(response) {
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+      return response.json();
+    })
+    .then(function(data) {
+      if (!data || !data.scores) {
+        document.getElementById("loadingScreen").style.display = "none";
+        document.getElementById("errorScreen").style.display   = "block";
+        document.getElementById("errorMsg").textContent =
+          "No data returned. Run runTrackerCycle() in Apps Script first.";
+        return;
+      }
+      renderAll(data);
+    })
+    .catch(function(err) {
+      document.getElementById("loadingScreen").style.display = "none";
+      document.getElementById("errorScreen").style.display   = "block";
+      document.getElementById("errorMsg").textContent =
+        "Could not load data: " + err.message;
+    });
+}
+
+
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
