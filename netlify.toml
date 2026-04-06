@@ -1,0 +1,6 @@
+[[redirects]]
+  from = "/api/tracker"
+  to = "https://script.google.com/macros/s/AKfycbxUJKTc3s1I2ERe-VH0GQs-B-MjnSgvH2e5ibQV78RPguA4Xg-HFJp4eruU2U320piL/exec?action=data"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}

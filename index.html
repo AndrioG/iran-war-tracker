@@ -1182,7 +1182,7 @@ function renderAll(data) {
 // APPS_SCRIPT_URL points at your deployed Apps Script web app.
 // The ?action=data parameter tells doGet() to return JSON
 // instead of rendering the HTML page.
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxUJKTc3s1I2ERe-VH0GQs-B-MjnSgvH2e5ibQV78RPguA4Xg-HFJp4eruU2U320piL/exec";
+const APPS_SCRIPT_URL = "/api/tracker";
 
 function init() {
   fetch(APPS_SCRIPT_URL + "?action=data")
