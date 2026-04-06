@@ -1,6 +1,14 @@
+[build]
+  functions = "netlify/functions"
+
 [[redirects]]
   from = "/api/tracker"
-  to = "https://script.google.com/macros/s/AKfycbxUJKTc3s1I2ERe-VH0GQs-B-MjnSgvH2e5ibQV78RPguA4Xg-HFJp4eruU2U320piL/exec?action=data"
+  to   = "/.netlify/functions/tracker"
   status = 200
-  force = true
-  headers = {X-From = "Netlify"}
+  force  = true
+
+[[redirects]]
+  from = "/api/tracker/*"
+  to   = "/.netlify/functions/tracker"
+  status = 200
+  force  = true

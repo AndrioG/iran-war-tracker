@@ -3,7 +3,7 @@
 // Fetches JSON from Apps Script and returns it to the frontend.
 // No CORS issue because this is a server-to-server call.
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxUJKTc3s1I2ERe-VH0GQs-B-MjnSgvH2e5ibQV78RPguA4Xg-HFJp4eruU2U320piL/exec?action=data";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDTMcDf7RySIUdJaHShahma39WvET0wSJRbcildAz7hQatv9MOasmdt3-MeNWIEOsOeA/exec?action=data";
 
 exports.handler = async function(event, context) {
   try {
